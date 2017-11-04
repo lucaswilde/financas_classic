@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" horizontalAlign="center" 
+	width="300" height="144" title="Digite a Senha">
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+		]]>
+	</mx:Script>
+	<mx:Form width="100%">
+		<mx:FormItem label="Senha">
+			<mx:TextInput id="senha" displayAsPassword="true"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:HBox>
+		<mx:Button id="btnOk" label="Ok"/>
+		<mx:Button label="Cancelar" click="{PopUpManager.removePopUp(this)}"/>
+	</mx:HBox>
+</mx:Panel>

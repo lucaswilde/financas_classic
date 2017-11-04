@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical"
+	 width="592" height="446" 
+	 title="Saldo Mensal"
+	showCloseButton="true" xmlns:componentes="uteis.componentes.*"
+	creationComplete="init()"
+	close="{fechar()}">
+	
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import uteis.Constantes;
+			import classesRelatorios.MediaMensal;
+			import classes.Categoria;
+			import mx.rpc.events.FaultEvent;
+			import uteis.ConexaoRemota;
+			import uteis.componentes.alerta.Alerta;
+			import mx.controls.Alert;
+			import mx.validators.Validator;
+			import uteis.Util;
+			import mx.events.FlexEvent;
+			import mx.events.ChildExistenceChangedEvent;
+			import mx.events.CloseEvent;
+			import mx.core.Application;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			import classes.Lancamento;
+			
+			import uteis.ImageResource;
+			
+			[Bindable] public var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			[Bindable] private var listaMediaMensal:ArrayCollection;			
+			
+			private function init():void
+			{
+				listarSaldo();
+			} 
+			
+			private function fechar():void
+			{
+				Util.removePopUp(this);
+			}
+			
+			private function listarSaldo():void
+			{
+				if(edtAno != null)
+				{
+					roLancamento.listarSaldo(int(edtAno.value));
+				}
+			}
+			
+			private function listarSaldoResult(event:ResultEvent):void
+			{
+				var arr:Array = event.result as Array;
+				//pega o primeiro elemento e remove do array
+				listaMediaMensal = arr.shift();
+				var valor:Number = arr.shift() as Number;
+				lblSaldoFinal.text = Util.formatarDinheiro(valor);
+				gridPesquisa.selectedIndex = int(Util.extrairMes(new Date())) - 1;
+			}
+			
+			private function resultFault(event:FaultEvent):void
+			{
+		      	Alerta.error(event.fault.message+"\n"+event.fault.faultDetail);
+		    }
+		    
+		    private function mostraValorEntrada(item:MediaMensal, coluna:DataGridColumn):String 
+			{
+				return Util.formatarDinheiro(item.valorEntrada as Number);	
+			}
+			
+			private function mostraValorSaida(item:MediaMensal, coluna:DataGridColumn):String 
+			{
+				return Util.formatarDinheiro(item.valorSaida as Number);	
+			}
+			
+			private function mostraMes(item:MediaMensal, coluna:DataGridColumn):String 
+			{
+				return item.mes +" - "+Util.getMeses().getItemAt(int(item.mes)-1).label;	
+			}
+		    
+		]]>
+	</mx:Script>
+	
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:FormItem label="Ano">
+			<mx:NumericStepper id="edtAno"  maximum="2050" minimum="2000" value="{Number(Util.extrairAno(new Date()))}"
+				change="{listarSaldo()}"/>
+		</mx:FormItem>
+		<mx:Button id="btnPesquisar" click="{listarSaldo()}" icon="{imageResource.pesquisar}"/>
+	</mx:HBox>
+
+	<mx:DataGrid id="gridPesquisa" width="100%" height="100%" dataProvider="{listaMediaMensal}">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Mês" width="120" labelFunction="mostraMes"/>
+			<mx:DataGridColumn headerText="Valor Entrada" dataField="valorEntrada" width="120" labelFunction="mostraValorEntrada"/>
+			<mx:DataGridColumn headerText="Valor Saída" dataField="valorSaida" width="120" labelFunction="mostraValorSaida"/>
+			<mx:DataGridColumn headerText="Saldo" itemRenderer="uteis.componentes.ItemRendererSaldo"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<mx:HBox width="100%">
+		<mx:Label text="SaldoFinal: " fontWeight="bold" fontSize="14" textAlign="right" width="50%"/>
+		<mx:Label id="lblSaldoFinal" fontWeight="bold" fontSize="14" textAlign="left" width="50%"/>
+	</mx:HBox>
+	
+	<mx:Label id="lblAviso" width="100%" textAlign="center"/>
+
+	<mx:RemoteObject id="roLancamento"
+		destination="lancamentoService"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}"
+		showBusyCursor="true"
+		invoke="{Util.showProgressBar(this)}">
+		<mx:method name="listarSaldo" result="{listarSaldoResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+	</mx:RemoteObject>
+	
+</mx:TitleWindow>

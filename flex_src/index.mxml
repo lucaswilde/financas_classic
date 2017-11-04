@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute"
+	creationComplete="init()" 
+	>
+	
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import formularios.relatorios.SaldoView;
+			import mx.core.IFlexDisplayObject;
+			import formularios.relatorios.RelatoriosView;
+			import classes.Usuario;
+			import formularios.UsuarioView;
+			import mx.effects.easing.Bounce;
+			import uteis.Constantes;
+			import uteis.ImageResource;
+			import uteis.componentes.BarraProgresso;
+			import uteis.Util;
+			import mx.events.MenuEvent;
+			import mx.controls.Alert;
+			import formularios.LancamentoView;
+			import formularios.CategoriaView;
+			
+			private var selectedNode:XML;
+			
+			[Bindable] public var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			[Bindable] public var usuarioLogado:Usuario;
+
+			private function init():void
+			{
+				abreLogin();
+			}				
+			
+			public function mostrarTelaComEfeito(pai:DisplayObject, tela:IFlexDisplayObject):void
+			{
+				popUpEffect.target = tela;
+				Util.showPopUp(pai, tela);
+				popUpEffect.play();
+			}
+			
+			public function abreLancamentoView():void
+			{
+				mostrarTelaComEfeito(this, new LancamentoView());	
+			}
+			
+			private function abreCategoriaView():void
+			{
+				mostrarTelaComEfeito(this, new CategoriaView());
+			}
+			
+			private function abreRelatoriosView():void
+			{
+				mostrarTelaComEfeito(this, new RelatoriosView());
+			}
+			
+			private function abreLogin():void
+			{
+				mostrarTelaComEfeito(this, new LoginView());
+			}
+			
+			private function abreUsuarioView():void
+			{
+				mostrarTelaComEfeito(this, new UsuarioView());
+			}
+			
+			private function abreSaldoView():void
+			{
+				mostrarTelaComEfeito(this, new SaldoView());
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:Parallel id="popUpEffect">
+		<mx:Fade alphaFrom="0" alphaTo="1"/>
+		<mx:WipeDown moveEasingFunction="{Bounce.easeOut}" duration="{Constantes.TEMPO_ABRIR_JANELA}"/>
+	</mx:Parallel>
+	
+	<!--<mx:Panel width="100%" backgroundColor="#ffffff" horizontalAlign="left">
+		<mx:MenuBar labelField="@label" itemClick="{menuClick(event)}" width="100%">
+			<mx:XMLList>
+				<node label="Manutenção">
+					<node label="Lançamentos" codigo="lancamento"/>
+					<node label="Categorias" codigo="categoria"/>
+				</node>
+				<node label="Relatório">
+					<node label="Lançamentos" codigo="lancamentoRel"/>
+				</node>
+			</mx:XMLList>
+		</mx:MenuBar>
+	</mx:Panel>
+	
+	<mx:ApplicationControlBar height="48" width="100%" color="#FFFFFF" themeColor="#FFFFFF">
+		<mx:LinkButton label="Lançamentos" height="100%" click="{abreLancamentoView()}" icon="{imageResource.moedas}"/>
+		<mx:LinkButton label="Relatórios" height="100%" click="{abreLancamentoViewRel()}"  icon="{imageResource.grafico_32x32}"/>
+	</mx:ApplicationControlBar>-->
+	
+	
+	
+	
+	<mx:Panel y="0" width="828" height="100%" layout="absolute" horizontalCenter="4" color="#000000" borderStyle="none">
+		<mx:Image x="617" y="49" source="uteis/imagens/img_um.png"/>
+		<mx:Label id="lblUsuarioLogado" x="10" y="474" text="{'Bem vindo, '+usuarioLogado.nome}" width="433" fontSize="18" fontWeight="bold"/>
+	</mx:Panel>
+	
+
+	<mx:ApplicationControlBar alpha="1" width="100%" height="40" y="17" fillAlphas="[0.7, 1]" 
+			fillColors="[#000000, #0004f0]" cornerRadius="0" left="0" fontSize="14">
+		<mx:HBox width="24%" horizontalAlign="left">
+		</mx:HBox>
+		<mx:LinkButton label="Categorias" height="100%" click="{abreCategoriaView()}" icon="{imageResource.categoria32x32}" color="#FFFFFF"/>
+		<mx:LinkButton label="Lançamentos" height="100%" click="{abreLancamentoView()}" icon="{imageResource.moedas}" color="#FFFFFF"/>
+		<mx:LinkButton label="Relatórios" height="100%" click="{abreRelatoriosView()}"  icon="{imageResource.grafico_32x32}" color="#FFFFFF"/>
+		<mx:LinkButton label="Usuários" height="100%" click="{abreUsuarioView()}" icon="{imageResource.usuario32x32}" color="#FFFFFF"/>
+		<mx:LinkButton label="Saldo Mensal" height="100%" click="{abreSaldoView()}" icon="{imageResource.saldo32x32}" color="#FFFFFF"/>
+	</mx:ApplicationControlBar>
+	
+	
+	
+	
+	
+</mx:Application>
+

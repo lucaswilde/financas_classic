@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" width="694" height="470"
+	title="Manutenção de Usuários" 
+	showCloseButton="true"
+	hideEffect="{wipeOut}" 
+	close="{fechar()}" xmlns:adobe="http://www.adobe.com/2006/fc"
+	creationComplete="init()"
+	xmlns:componente="com.adobe.flex.extras.controls.*" xmlns:uteis="uteis.*" xmlns:componentes="uteis.componentes.*">
+
+	<mx:Style source="uteis/css/newStyle.css"/>
+		
+	<mx:Script>
+		<![CDATA[
+			import uteis.componentes.alerta.Alerta;
+			import uteis.Util;
+			import mx.containers.Panel;
+			import mx.core.Application;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.DataGridEvent;
+			import uteis.Constantes;
+			import mx.managers.PopUpManager;
+			import mx.effects.easing.Bounce;
+			import mx.validators.Validator;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import uteis.ConexaoRemota;
+			import uteis.ImageResource;
+			import mx.rpc.events.FaultEvent;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			import classes.Usuario;
+			
+			[Bindable] 
+			public var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			[Bindable] 
+			private var pesquisaCollection:ArrayCollection = new ArrayCollection();
+			
+			private var constantes:Constantes = new Constantes();
+			
+     		private var verificaSenhaView:VerificaSenhaView;
+     		
+     		public var acao:String = "";
+     		
+     		
+     		private function init():void
+     		{
+     			pesquisar();
+//     			if(Application.application.usuarioLogado != null){
+//					if(!Application.application.usuarioLogado.administrador){
+//						btnExcluir.visible = false;
+//						btnNovo.visible = false;
+//						
+//						btnExcluir.includeInLayout = false;
+//						btnNovo.includeInLayout = false;
+//					}
+//				}
+     		}
+     		
+     		/**
+			*Funçao em caso de falha na chamada do remoteObject
+			*/
+			private function resultFault(event:FaultEvent):void{
+		      	Alert.show(event.fault.message+"\n"+event.fault.faultDetail);
+		    }		    
+				    				  
+			public function inserir():void{
+		     	limpaCampos();            // Limpa os Campos
+			   	habilitaEdic(true);       // Habilita Campos
+		    	habilitaAlter();          // Botões
+			  	edtAviso.text = "";       // Aviso
+
+			  	// TESTA SE ESTÁ NO ACCORDION MANUTENÇÃO
+			  	if(accPrincipal.selectedIndex == 1){
+			  		accPrincipal.selectedIndex = 0; // PULA PRA MANUTENÇÃO
+			  	}	
+			  	tabPesquisa.enabled = false;		  	
+		     	edtNome.setFocus();       // Foco
+			}
+		
+			/** CANCELAR
+			 */
+			public function cancelaOper():void{
+		      	limpaCampos();    // Limpar campos
+		      	edtAviso.text = "";
+		    	habilitaEdic(false); // Desabilita Campos de Texto 
+			   	desabilitaAlter();   // Desabilita Botoes
+			 	
+			 	tabPesquisa.enabled = true;
+			}
+			    		  
+			/** LIMPAR CAMPOS
+			 */
+			public function limpaCampos():void{
+		 	  	edtCodigo.text = "";
+		       	edtNome.text = "";
+		       	edtLogin.text = "";
+		       	edtSenha.text = "";
+		       	edtSenhaRedigitada.text = "";
+		       	rdbAdministrador.selected = false;
+		       	
+		       	edtNome.errorString = "";
+		       	edtLogin.errorString = "";
+		       	edtSenha.errorString = "";
+		       	
+			}
+		
+			/**HABITAR CAMPOS
+			 */
+			public function habilitaEdic(hab:Boolean):void{ 
+		        edtLogin.enabled = hab;
+		        edtNome.enabled = hab;
+		        edtSenha.enabled = hab;
+		        edtSenhaRedigitada.enabled = hab;
+				if(Application.application.usuarioLogado != null){		        
+//			        if(!Application.application.usuarioLogado.administrador){
+//			        	rdbAdministrador.enabled = false;
+//			        }else{
+//			        	rdbAdministrador.enabled = hab;
+//			        }
+				}
+			}
+		
+			/** CONTROLA DE BOTOES - FORM EM ESTADO DE INCLUSAO OU ALTERACAO
+			 */
+			public function habilitaAlter():void{
+		      	btnNovo.enabled = false;
+			   	btnSalvar.enabled = true;
+			   	btnCancelar.enabled = true;
+			}
+				  
+			/** CONTROLA DE BOTOES - FORM EM ESTADO NORMAL
+			 */
+			public function desabilitaAlter():void{
+		      	btnNovo.enabled = true;
+		    	btnSalvar.enabled = false;
+			   	btnCancelar.enabled = false;
+		    }
+		    
+		    /** SALVAR
+		    */
+			public function salvar():void{
+				if (Validator.validateAll(arrValidaCampos).length > 0) {
+					edtAviso.setStyle('color', 'red');	// Cor do Label
+					edtAviso.text = "* Existem campos com dados inválidos";
+				}else if(edtSenha.text != edtSenhaRedigitada.text){
+					Alert.show("As senhas não conferem!", "Aviso");				
+				}else{
+					// INSTANCIA O OBJETO P/ ENVIAR AO JAVA
+					var usuario:Usuario = new Usuario();
+					
+					usuario.codUsuario = int(edtCodigo.text);
+					usuario.login = edtLogin.text;
+					usuario.nome = edtNome.text;
+					usuario.senha = edtSenha.text;
+					
+					//ainda nao ha um usuario cadastrado
+//					if(Application.application.usuarioLogado == null){
+						usuario.administrador = true;						
+//					}
+//					//ja existe usuario cadastrado
+//					else{
+//						usuario.administrador = rdbAdministrador.selected;
+//					}
+					
+					roUsuario.salvar(usuario);
+				}
+			}
+				    
+			/**
+			 *  SALVAR - RESULT
+			 */
+			public function salvarResult( ev : ResultEvent):void{
+				var result : Boolean = ev.result as Boolean;
+				if(result){
+					edtAviso.setStyle('color', 'green');	// Cor do Label
+					edtAviso.text = "* Salvo com Sucesso!"; // Label
+					desabilitaAlter();    // Desabilita Botoes
+				   	habilitaEdic(false);  // Desabilita Campos
+					limpaCampos(); // Limpar Campos			   	
+				   	tabPesquisa.enabled = true;
+				}else{
+					edtAviso.setStyle('color', 'red');	// Cor do Label
+					Alerta.error("* Não foi possível Salvar!", "Aviso"); // Label
+				}
+			}
+			
+			/** EXCLUIR
+			 */
+		    public function excluir(): void{
+		    	if(gridPesquisa.selectedItem != null){
+	   			    Alerta.confirm("Tem certaza que deseja exclir este registro?", excluirOk);
+	   			    edtAviso.text = "";
+		    	}else{
+					edtAviso.setStyle('color', 'red');	// Cor do Label
+					edtAviso.text = "* Selecione um Registro no GRID!"; // Label		
+		       	}
+		    }
+		
+			/**
+			 *  EXCLUIR - OK - Usuário Confirmou a Exclusão do Registro
+			 */
+			public function excluirOk(event:CloseEvent): void{
+				var id:int; // Registro para Excluir
+				if (event.detail==Alert.YES){
+   			    	roUsuario.excluir(gridPesquisa.selectedItem.codUsuario);
+   				}						
+			}
+		        
+			/**
+			 *  RESULT - EXCLUIR
+			 */
+		    public function excluirResult(ev : ResultEvent):void{
+		    	var result : Boolean = ev.result as Boolean;
+				if(result){
+					edtAviso.setStyle('color', 'green');	// Cor do Label
+					edtAviso.text = "* Excluído com Sucesso!"; // Label			
+					pesquisar();
+				}else{
+			        Alerta.error("Não foi possível realizar a exclusão!","Aviso");	        		   
+		    	}    	    
+			}
+			
+			
+			/**
+			 *  MÉTODO ALTERAR
+			 */
+			public function alterar():void{
+				if (gridPesquisa.selectedIndex == -1){
+						edtAviso.setStyle('color', 'red');	// Cor do Label
+						edtAviso.text = "* Selecione um Registro no GRID!"; // Label		
+			 	}else{ // USUÁRIO SELECIONOU ITEM
+	    			habilitaEdic(true); // Habilita Edição
+					habilitaAlter();    // Habitita Botoes
+		    		edtCodigo.text = gridPesquisa.selectedItem.codUsuario;
+		    		edtNome.text = gridPesquisa.selectedItem.nome;
+		    		edtLogin.text = gridPesquisa.selectedItem.login;
+		    		edtSenha.text = gridPesquisa.selectedItem.senha;
+		    		rdbAdministrador.selected = Boolean(gridPesquisa.selectedItem.administrador);
+		    		
+		    		edtNome.setFocus(); // Foco
+	    			edtAviso.text = ''; // Aviso
+										
+					edtAviso.text = "";
+					accPrincipal.selectedIndex = 0;
+					tabPesquisa.enabled = false;
+				}
+				
+			} // ALTERAR
+
+			
+			/**
+			*Funçao pesquisar
+			*/
+			public function pesquisar():void{
+//				if(Application.application.usuarioLogado != null){
+//					if(!Application.application.usuarioLogado.administrador){
+//						roUsuario.carregarUsuario(Application.application.usuarioLogado.codUsuario);					
+//					}else{
+//				    	roUsuario.pesquisar(edtPesquisa.text);		    	
+//					}
+//				}else{
+			    	roUsuario.pesquisar(edtPesquisa.text);		    	
+//				}
+		    }
+		    
+		    /**
+			*Result funçao pesquisar
+			*/
+			public function pesquisarResult(e:ResultEvent):void{
+	      		pesquisaCollection = e.result as ArrayCollection;
+	      		if(pesquisaCollection.length == 0){
+	      			edtAviso.text = "Nenhum registro encontrado";
+	      		}else{
+	      			edtAviso.text = "";
+	      		}
+		    }
+		    
+		    private function fechar():void{
+		    	Util.removePopUp(this);
+		    }
+		    
+		    /**
+		    * faz uma verificacao da senha digitada e a senha do usuario
+		    * chamada antes de excluir ou alterar um usuario
+		    */
+		    public function abreVerificaSenha():void{
+		    	if(gridPesquisa.selectedItem != null){
+		    		verificaSenhaView = new VerificaSenhaView();
+		    		PopUpManager.addPopUp(verificaSenhaView, this, true);
+		    		PopUpManager.centerPopUp(verificaSenhaView);
+		    		verificaSenhaView.btnOk.addEventListener(MouseEvent.CLICK, confereSenha);	
+		    	}
+		    }
+		    
+		    private function confereSenha(ev:Event):void{
+		    	if(verificaSenhaView.senha.text == (gridPesquisa.selectedItem as Usuario).senha){
+		    		if(acao == "excluir"){
+		    			excluir();
+		    		}else if(acao == "alterar"){
+		    			alterar();
+		    		}
+		    		acao = "";
+		    		PopUpManager.removePopUp(verificaSenhaView);
+		    	}else{
+		    		Alert.show("Senha Incorreta!", "Aviso");
+		    	}
+		    }
+		    
+		    private function changeAccordion(event:Event):void
+			{
+				if((event.currentTarget as Accordion).selectedIndex == 1)
+				{
+					pesquisaCollection = new ArrayCollection();
+					pesquisar();
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Efeito - Chamado antes de fechar o formulario -->
+	<mx:WipeUp id="wipeOut" duration="{Constantes.TEMPO_ABRIR_JANELA}" effectEnd="{PopUpManager.removePopUp(this)}"/>
+	
+	<mx:Parallel id="popUpEffect">
+		<mx:Fade alphaFrom="0" alphaTo="1"/>
+		<mx:WipeDown moveEasingFunction="{Bounce.easeOut}" duration="{Constantes.TEMPO_ABRIR_JANELA}"/>
+	</mx:Parallel>
+	
+	<!-- Valida os campos do formulario -->
+    <mx:Array id="arrValidaCampos">
+		<mx:StringValidator id="nomeValidator"
+			source="{edtNome}"
+			property="text"
+			required="true"
+			requiredFieldError="Preenchimento obrigatório"/>
+		<mx:StringValidator id="loginValidator"
+			source="{edtLogin}"
+			property="text"
+			required="true"
+			requiredFieldError="Preenchimento obrigatório"/>
+		<mx:StringValidator id="senhaValidator"
+			source="{edtSenha}"
+			property="text"
+			required="true"
+			requiredFieldError="Preenchimento obrigatório"/>
+	</mx:Array>
+
+	<mx:Accordion id="accPrincipal" width="100%" height="100%" creationPolicy="all" selectedIndex="1" change="{changeAccordion(event)}">
+		<mx:Canvas id="tabManutencao" label="Manutenção" width="100%" height="100%">
+			<mx:VBox height="100%" width="100%" paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10">
+				<mx:Form width="100%" height="100%" id="form1">
+					<mx:FormItem label="Código">
+						<mx:TextInput id="edtCodigo" width="74" enabled="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Nome" required="true">
+						<componentes:TextInputPersonalizado id="edtNome" width="200" maxChars="30" enabled="false"/>
+					</mx:FormItem>					
+					<mx:FormItem label="Login" required="true">
+						<mx:TextInput id="edtLogin" width="200" maxChars="30" enabled="false"/>
+					</mx:FormItem>
+					<mx:FormItem label="Senha" required="true">
+						<mx:TextInput id="edtSenha" width="200" maxChars="15" enabled="false" displayAsPassword="true"/>
+					</mx:FormItem>
+					<mx:FormItem label="Redigite a Senha" required="true">
+						<mx:TextInput id="edtSenhaRedigitada" width="200" maxChars="15" enabled="false" displayAsPassword="true"/>
+					</mx:FormItem>
+					<mx:FormItem label="Administrador" includeInLayout="false" visible="false">
+						<mx:CheckBox id="rdbAdministrador" label="Admistrador" enabled="false"/>
+					</mx:FormItem>
+				</mx:Form>				
+			</mx:VBox>
+		</mx:Canvas>
+		<mx:Canvas id="tabPesquisa" label="Pesquisa" width="100%" height="100%">
+			<mx:VBox width="100%" height="100%" paddingRight="17" paddingTop="10" paddingBottom="10" paddingLeft="17" id="vbox1">
+				<mx:HBox width="100%" horizontalAlign="center" paddingLeft="5" paddingRight="5" paddingTop="5">
+					<mx:Label id="lblDescricaoPesquisa" text="Nome"/>
+					<mx:TextInput maxChars="50" id="edtPesquisa" enter="{pesquisar()}" width="124" tabIndex="2" enabled="true" editable="true" change="{edtPesquisa.text = edtPesquisa.text.toUpperCase()}"/>
+					<mx:Button id="btnPesquisar" click="{pesquisar()}" toolTip="Pesquisar" icon="{imageResource.pesquisar}" labelPlacement="left"/>
+				</mx:HBox>
+				<mx:DataGrid id="gridPesquisa" dataProvider="{pesquisaCollection}" width="100%" height="95%">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Código" dataField="codUsuario" width="80"/>
+							<mx:DataGridColumn headerText="Nome" dataField="nome"/>
+							<mx:DataGridColumn headerText="Login" dataField="login"/>
+							<mx:DataGridColumn width="70" headerText="Alterar">
+								<mx:itemRenderer>
+									<mx:Component>
+										<mx:HBox width="100%" height="100%" horizontalAlign="center">
+											<mx:Image source="{outerDocument.imageResource.alterar}" click="{outerDocument.acao = 'alterar'; outerDocument.abreVerificaSenha()}" toolTip="Alterar"/>
+										</mx:HBox>											
+									</mx:Component>
+								</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn width="70" headerText="Excluir">
+								<mx:itemRenderer>
+									<mx:Component>
+										<mx:HBox width="100%" height="100%" horizontalAlign="center">
+											<mx:Image source="{outerDocument.imageResource.excluir}" click="outerDocument.acao = 'excluir'; outerDocument.abreVerificaSenha()" toolTip="Excluir"/>
+										</mx:HBox>											
+									</mx:Component>
+								</mx:itemRenderer>
+							</mx:DataGridColumn>
+						</mx:columns>
+				</mx:DataGrid>				
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:Accordion>
+	<mx:Label id="edtAviso" width="100%" textAlign="center"/>
+	
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:Button label="Novo" id="btnNovo" click="{inserir()}" icon="{imageResource.novo}" toolTip="Incluir Registro." buttonMode="true" width="81"/>
+		<mx:Button label="Salvar"  enabled="false" id="btnSalvar" click="{salvar()}" icon="{imageResource.salvar}" toolTip="Grava as informações." buttonMode="true" width="91"/>		
+		<mx:Button label="Cancelar" enabled="false" id="btnCancelar" click="{cancelaOper()}" icon="{imageResource.cancel16x16}" toolTip="Cancela a operação." buttonMode="true"/>
+	</mx:HBox>
+	
+	
+	<mx:RemoteObject id="roUsuario"
+		destination="usuarioService"
+		showBusyCursor="true"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}">
+		<mx:method name="salvar" result="salvarResult(event)" fault="resultFault(event)"/>
+		<mx:method name="excluir" result="excluirResult(event)" fault="resultFault(event)"/>
+		<mx:method name="pesquisar" result="pesquisarResult(event)" fault="resultFault(event)"/>
+		<mx:method name="carregarUsuario" result="pesquisarResult(event)" fault="resultFault(event)"/>
+	</mx:RemoteObject>
+	
+
+</mx:TitleWindow>

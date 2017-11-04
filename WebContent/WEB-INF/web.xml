@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+  <display-name>financas</display-name>
+  <context-param>
+    <param-name>flex.class.path</param-name>
+    <param-value>/WEB-INF/flex/hotfixes,/WEB-INF/flex/jars</param-value>
+  </context-param>
+  <listener>
+    <listener-class>flex.messaging.HttpFlexSession</listener-class>
+  </listener>
+  <servlet>
+    <servlet-name>MessageBrokerServlet</servlet-name>
+    <servlet-class>flex.messaging.MessageBrokerServlet</servlet-class>
+    <init-param>
+      <param-name>services.configuration.file</param-name>
+      <param-value>/WEB-INF/flex/services-config.xml</param-value>
+    </init-param>
+    <init-param>
+      <param-name>flex.write.path</param-name>
+      <param-value>/WEB-INF/flex</param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>MessageBrokerServlet</servlet-name>
+    <url-pattern>/messagebroker/*</url-pattern>
+  </servlet-mapping>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+  <context-param>
+    <param-name>es.claro.persistence.PERSISTENCE_UNIT</param-name>
+    <param-value>financasPU</param-value>
+  </context-param>
+  <listener>
+    <description>ServletContext and Request Listener for managing EntityManager with request scope</description>
+    <listener-class>es.claro.persistence.PersistenceAppRequestListener</listener-class>
+  </listener>
+  
+  <!-- Lançamentos -->
+  <servlet>
+    <description></description>
+    <display-name>LancamentoRelatorio</display-name>
+    <servlet-name>LancamentoRelatorio</servlet-name>
+    <servlet-class>controleRelatorios.LancamentoRelatorio</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>LancamentoRelatorio</servlet-name>
+    <url-pattern>/LancamentoRelatorio</url-pattern>
+  </servlet-mapping>
+  
+  <!-- ReportFilter -->
+  <servlet>
+    <description></description>
+    <display-name>ReportFilter</display-name>
+    <servlet-name>ReportFilter</servlet-name>
+    <servlet-class>controleRelatorios.ReportFilter</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ReportFilter</servlet-name>
+    <url-pattern>/ReportFilter</url-pattern>
+  </servlet-mapping>
+  
+  <!-- Categoria -->
+  <servlet>
+    <description></description>
+    <display-name>CategoriaRelatorio</display-name>
+    <servlet-name>CategoriaRelatorio</servlet-name>
+    <servlet-class>controleRelatorios.CategoriaRelatorio</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>CategoriaRelatorio</servlet-name>
+    <url-pattern>/CategoriaRelatorio</url-pattern>
+  </servlet-mapping>
+  
+  
+</web-app>

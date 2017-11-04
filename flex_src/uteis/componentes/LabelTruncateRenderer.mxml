@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" implements="mx.controls.listClasses.IDropInListItemRenderer, mx.core.IFactory" width="100%" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:controls="mv.componentes.controls.*">
+	<mx:Script>
+		<![CDATA[
+			import uteis.Util;
+			import mx.controls.listClasses.ListData;
+			import mx.controls.listClasses.BaseListData;
+			
+
+			// Make the listData property bindable.
+    		[Bindable("dataChange")]
+			private var _listData : BaseListData;    
+			
+    		public function newInstance():*
+    		{
+    			return new LabelTruncateRenderer();
+    		}
+
+			public function get listData() : BaseListData
+			{
+				return _listData;            
+			}                                        
+	
+			public function set listData( value : BaseListData ) : void
+			{
+				_listData = value;
+				
+			}
+			
+			override public function set data(value:Object):void
+			{
+				if(value) {
+					labelItem.text = Util.getAttributeValue(value,ListData(listData).labelField) as String;
+					if(labelItem.text == "" && this.listData){ // caso seja definido um labelFunction
+						labelItem.text = this.listData.label;
+					}
+				}
+				super.data = value;
+			}   
+			
+		]]>
+	</mx:Script>
+	<mx:Label id="labelItem" truncateToFit="true" width="{this.width}"/>
+</mx:Canvas>

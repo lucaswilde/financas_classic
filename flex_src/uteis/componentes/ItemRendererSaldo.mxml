@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Text xmlns:mx="http://www.adobe.com/2006/mxml"
+	preinitialize="initTA();">
+	
+    <mx:Script>
+        <![CDATA[
+        	import uteis.Util;
+        	import classes.Lancamento;
+        	import classesRelatorios.MediaMensal;
+        	import mx.controls.DataGrid;
+        
+            import mx.controls.dataGridClasses.DataGridListData;
+            import flash.events.Event;
+        
+            public function initTA():void {         
+                addEventListener("dataChange", handleDataChanged);
+            }   
+
+            public function handleDataChanged(event:Event):void {       
+                // Cast listData to DataGridListData. 
+                var myListData:DataGridListData = 
+                    DataGridListData(listData);
+                
+                // Access information about the data passed 
+                // to the cell renderer.
+                
+                var media:MediaMensal = ((myListData.owner as DataGrid).dataProvider[myListData.rowIndex] as MediaMensal);
+                text = Util.formatarDinheiro(media.valorSaldo);
+                
+                if(media.valorSaldo < 0)
+				{
+					setStyle("color", "#ff0000");
+				}
+				else
+				{
+					setStyle("color", "#2007DE");
+				}
+				
+				//negrito
+				setStyle("fontWeight", "bold");
+            }   
+        ]]>
+    </mx:Script>
+	
+	
+	
+</mx:Text>

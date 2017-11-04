@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" width="732" height="462" title="Manutenção de Categorias"
+	showCloseButton="true" xmlns:componentes="uteis.componentes.*"
+	creationComplete="init()"
+	close="{fechar()}">
+
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import uteis.componentes.BarraProgresso;
+			import mx.events.CloseEvent;
+			import uteis.componentes.alerta.Alerta;
+			import mx.validators.Validator;
+			import uteis.ConexaoRemota;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import uteis.Util;
+			import mx.managers.PopUpManager;
+			import mx.core.Application;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			import classes.Categoria;
+			
+			import uteis.ImageResource;
+			
+			[Bindable] private var categoria:Categoria = new Categoria();
+			
+			[Bindable] public var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			[Bindable] private var editando:Boolean = false;
+			
+			[Bindable] private var pesquisaCollection:ArrayCollection;
+			
+			
+			private function init():void
+			{
+				edtPesquisa.setFocus();
+				pesquisar();
+			} 
+			
+			private function incluir():void
+			{
+				editando = true;
+				limpaObjeto();
+				edtDescricao.setFocus();
+				accordion.selectedIndex = 0;
+				lblAviso.text = "";
+			}
+			
+			public function alterar():void
+			{
+				accordion.selectedIndex = 0;
+				categoria = Categoria(gridPesquisa.selectedItem);
+				editando = true;
+				lblAviso.text = "";
+			}
+			
+			private function salvar():void
+			{
+				if (Validator.validateAll(arrValidaCampos).length > 0) 
+					lblAviso.text = "* Existem campos com dados inválidos";
+				else
+					roCategoria.salvar(categoria);
+			}
+			
+			private function salvarResult(event:ResultEvent):void
+			{
+				if(event.result as Boolean)
+				{
+					limpaObjeto();
+					editando = false;
+					lblAviso.text = "Salvo com sucesso!";
+				}else
+					lblAviso.text = "Não foi possível salvar!";
+			} 
+			
+			public function excluir():void
+			{
+				Alerta.confirm("Tem certaza que deseja exclir este registro?", excluirOk);
+			}
+			
+			public function excluirOk(event:CloseEvent):void
+			{
+				if(event.detail == Alert.YES)
+					roCategoria.excluir((gridPesquisa.selectedItem as Categoria).codCategoria);
+			}
+			
+			private function excluirResult(event:ResultEvent):void
+			{
+				if(event.result as Boolean)
+				{
+					pesquisar();
+					lblAviso.text = "Excluído com sucesso!";
+				}else
+					Alerta.error("Não foi possível excluir! \n\n" + 
+			        		   "Verifique se o registro está vinculado a outro Lançamento.","Aviso");	
+			}
+			
+			private function cancelar():void
+			{
+				limpaObjeto();
+				editando = false;
+				accordion.selectedIndex = 1;
+				lblAviso.text = "";
+			}
+			
+			private function limpaObjeto():void
+			{
+				categoria = new Categoria();
+				edtDescricao.errorString = "";
+			} 
+			
+			private function fechar():void
+			{
+				Util.removePopUp(this);
+			}
+			
+			private function pesquisar():void
+			{
+				roCategoria.pesquisar(edtPesquisa.text);
+			}
+			
+			private function pesquisarResult(event:ResultEvent):void
+			{
+				pesquisaCollection = event.result as ArrayCollection;
+			}
+			
+			private function resultFault(event:FaultEvent):void
+			{
+		      	Alerta.error(event.fault.message+"\n"+event.fault.faultDetail);
+		    }
+		    
+		    private function changeAccordion(event:Event):void
+			{
+				if((event.currentTarget as Accordion).selectedIndex == 1)
+				{
+					pesquisaCollection = new ArrayCollection();
+					pesquisar();
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Binding source="int(edtCodigo.text)" destination="categoria.codCategoria"/>
+	<mx:Binding source="edtDescricao.text" destination="categoria.descricao"/>
+	
+	<!-- Valida os campos do formulario -->
+    <mx:Array id="arrValidaCampos">
+		<mx:StringValidator
+			source="{edtDescricao}"
+			property="text"
+			required="true"
+			requiredFieldError="Preenchimento obrigatório."/>
+	</mx:Array>
+	
+	<mx:Accordion id="accordion" width="100%" height="100%" selectedIndex="1" creationPolicy="all" change="{changeAccordion(event)}">
+		
+		<!-- Aba 1 -->
+		<mx:Canvas label="Manutenção" width="100%" height="100%">
+			<mx:Form width="100%" height="100%">
+				<mx:FormItem label="Código">
+					<mx:TextInput id="edtCodigo" text="{categoria.codCategoria}" enabled="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Descrição">
+					<componentes:TextInputPersonalizado id="edtDescricao" text="{categoria.descricao}" enabled="{editando}" 
+						width="300" maxWidth="300"/>
+				</mx:FormItem>				
+			</mx:Form>
+		</mx:Canvas>
+		
+		<!-- Aba 2 -->
+		<mx:Canvas label="Pesquisa" width="100%" height="100%">
+			<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:Label text="Descrição"/>
+					<mx:TextInput id="edtPesquisa" width="280"/>
+					<mx:Button icon="{imageResource.pesquisar}" toolTip="Pesquisar" click="{pesquisar()}"/>
+				</mx:HBox>	
+				<mx:DataGrid id="gridPesquisa" width="100%" height="100%" dataProvider="{pesquisaCollection}">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Código" dataField="codCategoria" width="100"/>
+						<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+						<mx:DataGridColumn width="70" headerText="Alterar">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:HBox width="100%" height="100%" horizontalAlign="center">
+										<mx:Image source="{outerDocument.imageResource.alterar}" click="{outerDocument.alterar()}" toolTip="Alterar"/>
+									</mx:HBox>											
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn width="70" headerText="Excluir">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:HBox width="100%" height="100%" horizontalAlign="center">
+										<mx:Image source="{outerDocument.imageResource.excluir}" click="outerDocument.excluir()" toolTip="Excluir"/>
+									</mx:HBox>											
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:Accordion>
+	
+	<mx:Label id="lblAviso" width="100%" textAlign="center"/>
+	
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:Button id="btnNovo" enabled="{!editando}" label="Novo" click="{incluir()}" icon="{imageResource.novo}" toolTip="Incluir Registro." buttonMode="true"/>
+		<mx:Button id="btnSalvar" enabled="{editando}" label="Salvar" click="{salvar()}" icon="{imageResource.salvar}" toolTip="Grava as informações." buttonMode="true" />		
+		<mx:Button id="btnCancelar" enabled="{editando}" label="Cancelar" click="{cancelar()}" icon="{imageResource.cancel16x16}" toolTip="Cancela a operação." buttonMode="true"/>
+	</mx:HBox>
+
+	<mx:RemoteObject id="roCategoria"
+		destination="categoriaService"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}"
+		showBusyCursor="true" 
+		invoke="{Util.showProgressBar(this)}">
+		<mx:method name="pesquisar" result="{pesquisarResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+		<mx:method name="salvar" result="{salvarResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+		<mx:method name="excluir" result="{excluirResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+	</mx:RemoteObject>
+	
+</mx:TitleWindow>

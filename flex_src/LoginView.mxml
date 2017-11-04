@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute" 
+	width="486" 
+	height="208" 
+	title="Bem Vindo" 
+	horizontalAlign="center" 
+	verticalAlign="middle"
+	creationComplete="init()">	
+
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import uteis.Util;
+			import mx.core.Application;
+			import uteis.ImageResource;
+			import mx.controls.Alert;
+			import uteis.ConexaoRemota;
+			import mx.rpc.events.FaultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import classes.Usuario;
+			
+			private var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			
+			public function init():void
+			{
+				PopUpManager.centerPopUp(this);
+				edtLogin.setFocus();
+				
+				listarUsuarios();	
+			}
+			
+			public function login():void
+			{
+				if(edtLogin.text != "" && edtSenha.text != "")
+				{
+					var u:Usuario = new Usuario()
+					u.login = edtLogin.text;
+					u.senha = edtSenha.text;
+					roUsuario.login(u);
+				}
+			}
+			
+			public function loginResult(event:ResultEvent):void
+			{
+				var usuario:Usuario = event.result as Usuario;
+				if(usuario)
+				{
+					this.visible = false;
+					Application.application.usuarioLogado = usuario;
+				}
+				else
+				{
+					lblAviso.text = "Usuário não encontrado!";
+					lblAviso.setStyle("color", "red");
+				}
+			}
+			
+			private function limpar():void
+			{
+				edtLogin.text = "";
+				edtSenha.text = "";
+			}
+			
+			private function resultFault(event:FaultEvent):void
+			{
+		      	Alert.show(event.fault.message+"\n"+event.fault.faultDetail);
+		    }
+		    
+		    public function listarUsuarios():void
+		    {
+		    	roUsuario.pesquisar("");		    	
+		    }
+		    
+		    /**
+			* Result funçao Listar usuarios
+			*/
+			public function listarUsuariosResult(e:ResultEvent):void
+			{
+				//caso não existir usuario cadastrado, remove a tela de login
+	      		if((e.result as ArrayCollection).length == 0)
+	      		{
+	      			Util.removePopUp(this);
+	      			(Application.application as index).lblUsuarioLogado.visible = false;
+	      			this.parentApplication.abreLancamentoView();
+	      		}
+		    }
+		]]>
+	</mx:Script>
+	
+	<mx:Label x="17" y="3" id="mensagemErro" color="#ff0000"/>
+	<mx:Label x="18" y="38" text="Login"/>
+	<mx:Label x="13" y="68" text="Senha"/>
+	<mx:TextInput x="59" y="38" id="edtLogin" name="edtLogin" width="219" enter="{login()}"/>
+	<mx:TextInput x="59" y="68" displayAsPassword="true" id="edtSenha" width="219" enter="{login()}"/>
+	<mx:Button x="61" y="115" label="Logar" id="btnLogar" click="{login()}" alpha="1" icon="{imageResource.salvar}" width="101"/>	
+	<mx:Button x="170" y="115" label="Limpar" id="btnLimpar" click="limpar()" alpha="1" icon="{imageResource.cancel16x16}" width="108"/>
+	
+	<mx:RemoteObject id="roUsuario"
+		destination="usuarioService"
+		showBusyCursor="true"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}">
+		<mx:method name="login" result="loginResult(event)" fault="resultFault(event)"/>
+		<mx:method name="pesquisar" result="listarUsuariosResult(event)" fault="resultFault(event)"/>	
+	</mx:RemoteObject>	
+
+	<mx:Image x="305" y="10" width="151" height="129" source="{imageResource.login}"/>
+	<mx:Label x="76" y="145" width="175" id="lblAviso"/>
+	
+</mx:TitleWindow>

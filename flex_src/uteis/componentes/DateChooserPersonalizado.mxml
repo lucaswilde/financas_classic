@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:DateChooser xmlns:mx="http://www.adobe.com/2006/mxml"
+	
+	monthNames="['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
+									 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']"
+	dayNames="['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']">
+	
+</mx:DateChooser>

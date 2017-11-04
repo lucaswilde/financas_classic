@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="vertical"
+	width="1000" 
+	height="600" 
+	title="Manutenção de Lancamentos"
+	showCloseButton="true" xmlns:componentes="uteis.componentes.*"
+	creationComplete="init()"
+	close="{fechar()}">
+	
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import uteis.Constantes;
+			import classesRelatorios.MediaMensal;
+			import classes.Categoria;
+			import mx.rpc.events.FaultEvent;
+			import uteis.ConexaoRemota;
+			import uteis.componentes.alerta.Alerta;
+			import mx.controls.Alert;
+			import mx.validators.Validator;
+			import uteis.Util;
+			import mx.events.FlexEvent;
+			import mx.events.ChildExistenceChangedEvent;
+			import mx.events.CloseEvent;
+			import mx.core.Application;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			import classes.Lancamento;
+			import uteis.ImageResource;
+			
+			[Bindable] private var lancamento:Lancamento = new Lancamento();
+			
+			[Bindable] public var imageResource:ImageResource = ImageResource.getInstancia();
+			
+			[Bindable] private var editando:Boolean = false;
+			
+			[Bindable] private var categoriaCollection:ArrayCollection;
+			
+			[Bindable] private var arrMeses:ArrayCollection = Util.getMeses();
+			
+			[Bindable] private var mediaMensal:MediaMensal = new MediaMensal();
+			
+			private var salvaEContinua:Boolean = false;
+			
+			[Bindable] private var arrOrdenacao:ArrayCollection;
+
+			private function init():void
+			{
+				arrOrdenacao = new ArrayCollection([{data:"data",label:"Data"},
+										{data:"valor",label:"Valor"},
+										{data:"categoria.descricao",label:"Categoria"}]);
+				selecionaMes();
+				listarCategoria();
+				pesquisar();
+				incluir();
+			} 
+			
+			private function incluir():void
+			{
+				editando = true;
+				limpaObjeto();
+				accordion.selectedIndex = 0;
+				lblAviso.text = "";
+				edtData.selectedDate = new Date();
+			}
+			
+			public function alterar():void
+			{
+				accordion.selectedIndex = 0;
+				lancamento = Lancamento(gridPesquisa.selectedItem);
+				editando = true;
+				lblAviso.text = "";
+				
+				//seleciona o tipo de lancamento
+				for(var i:int = 0; i < categoriaCollection.length; i++)
+				{
+					if((categoriaCollection[i] as Categoria).codCategoria == lancamento.categoria.codCategoria)
+					{
+						edtCategoria.selectedIndex = i;
+						break;
+					}
+				}
+				
+				if(lancamento.tipo == Constantes.ENTRADA)
+				{
+					radioEntrada.selected = true;
+				}
+				
+				if(lancamento.tipo == Constantes.SAIDA)
+				{
+					radioSaida.selected = true;
+				}
+			}
+			
+			private function salvar():void
+			{
+				if(Validator.validateAll(arrValidaCampos).length > 0)
+				{ 
+					lblAviso.text = "* Existem campos com dados inválidos";
+				}
+				else if(edtValor.value == 0)
+				{
+					Alerta.info("Valor deve ser maior que zero!");
+				}
+				else
+				{
+					roLancamento.salvar(lancamento);
+				}
+			}
+			
+			private function salvarResult(event:ResultEvent):void
+			{
+				if(event.result as Boolean)
+				{
+					lblAviso.text = "Salvo com sucesso!";
+					incluir();
+				}
+				else
+				{
+					lblAviso.text = "Não foi possível salvar!";
+				}
+			} 
+			
+			public function excluir():void
+			{
+				Alerta.confirm("Tem certaza que deseja exclir este registro?", excluirOk);
+			}
+			
+			public function excluirOk(event:CloseEvent):void
+			{
+				if(event.detail == Alert.YES)
+					roLancamento.excluir((gridPesquisa.selectedItem as Lancamento).codLancamento);
+			}
+			
+			private function excluirResult(event:ResultEvent):void
+			{
+				if(event.result as Boolean)
+				{
+					pesquisar();
+					lblAviso.text = "Excluído com sucesso!";
+				}else
+					lblAviso.text = "Não foi possível excluir!";	
+			}
+			
+			private function cancelar():void
+			{
+				limpaObjeto();
+				editando = false;
+				accordion.selectedIndex = 1;
+				lblAviso.text = "";
+			}
+			
+			private function limpaObjeto():void
+			{
+				lancamento = new Lancamento();
+				edtCategoria.selectedIndex = -1;
+				edtData.errorString = "";
+				radioTipo.selection = null;
+				radioEntrada.selected = false;
+				radioSaida.selected = false;
+			} 
+			
+			private function fechar():void
+			{
+				Util.removePopUp(this);
+			}
+			
+			private function abreCategoriaView():void
+			{
+				var categoriaView:CategoriaView = new CategoriaView();
+				Util.showPopUp(this, categoriaView, listarCategoria);
+			}
+
+			private function pesquisar():void
+			{
+				var mes:int;
+				if(edtMeses.enabled)
+				{
+					mes = int(edtMeses.selectedItem.data); 
+				}
+				
+				var ano:int;
+				if(edtAno.enabled)
+				{
+					ano = int(edtAno.value); 
+				}
+				
+				var obs:String;
+				if(agruparLancamentos.selected)
+				{
+					obs = "";	
+				}else
+				{
+					obs = edtObsPesquisa.text;
+				}
+				
+				var codCategoria:int;
+				if(cbxCategoriaPesquisa.selected && edtCategoriaPesquisa.selectedItem)
+				{
+					codCategoria = (edtCategoriaPesquisa.selectedItem as Categoria).codCategoria; 
+				}
+				
+				roLancamento.pesquisar(mes, ano, 
+					agruparLancamentos.selected, radioTipoPesquisa.selectedValue, obs, codCategoria);
+			}
+			
+			private function pesquisarResult(event:ResultEvent):void
+			{
+				mediaMensal = event.result as MediaMensal;
+				lblValorTotal.text = "Valor Total: "+Util.formatarDinheiro(mediaMensal.valorTotalMes);
+			}
+			
+			private function resultFault(event:FaultEvent):void
+			{
+		      	Alerta.error(event.fault.message+"\n"+event.fault.faultDetail);
+		    }
+		    
+		    /**
+		    * Seleciona o mês pegando a data do computador
+		    **/
+		    private function selecionaMes():void
+		    {
+		    	var mesAtual:String = Util.extrairMes(new Date());
+		    	for(var i:int = 0; i < arrMeses.length; i++)
+		    	{
+		    		if(arrMeses[i].data == mesAtual)
+		    		{
+		    			edtMeses.selectedIndex = i;
+		    			break;
+		    		}
+		    	}
+		    }
+		    
+		    private function listarCategoria(event:Event = null):void
+		    {
+		    	roCategoria.listar();
+		    }
+		    
+		    private function listarCategoriaResult(event:ResultEvent):void
+		    {
+		    	categoriaCollection = event.result as ArrayCollection;
+		    	edtCategoria.selectedIndex = -1;
+		    }
+		    
+			private function mostraData(item:Object, coluna:DataGridColumn):String 
+			{
+				return Util.formatarData(item.data);	
+			}
+			
+			private function mostraCategoria(item:Object, coluna:DataGridColumn):String 
+			{
+				return item.categoria.descricao;	
+			}
+			
+			private function mostraValor(item:Object, coluna:DataGridColumn):String 
+			{
+				return Util.formatarDinheiro(item.valor as Number);	
+			}
+			
+			private function changeAccordion(event:Event):void
+			{
+				if((event.currentTarget as Accordion).selectedIndex == 1)
+				{
+					mediaMensal.listaLancamentos = new ArrayCollection();
+					pesquisar();
+				}
+			}
+		    
+		]]>
+	</mx:Script>
+	
+	<mx:Binding source="int(edtCodigo.text)" destination="lancamento.codLancamento"/>
+	<mx:Binding source="edtData.selectedDate" destination="lancamento.data"/>
+	<mx:Binding source="edtObs.text" destination="lancamento.obs"/>
+	<mx:Binding source="Categoria(edtCategoria.selectedItem)" destination="lancamento.categoria"/>
+	<mx:Binding source="Number(edtValor.value)" destination="lancamento.valor"/>
+	<mx:Binding source="String(radioTipo.selectedValue)" destination="lancamento.tipo"/>
+	<mx:Binding source="edtParcelado.selected" destination="lancamento.parcelado"/>
+	<mx:Binding source="edtQtdParcelas.value" destination="lancamento.qtdParcelas"/>
+	
+	<mx:Array id="arrValidaCampos">
+		<componentes:DateValidatorPersonalizado
+			required="true"
+			source="{edtData}"
+			property="text"/>
+		<mx:NumberValidator
+			required="true"
+			source="{edtCategoria}"
+			property="selectedIndex"
+			minValue="0"
+			lowerThanMinError="Você deve selecionar um item!"/>
+		<componentes:RadioButtonGroupValidator 
+			source="{radioTipo}" 
+			property="selectedValue" 
+			required="true" 
+			requiredFieldError="Selecione o Tipo"/>
+	</mx:Array>
+	
+	<mx:Accordion id="accordion" width="100%" height="100%" selectedIndex="1" creationPolicy="all" change="{changeAccordion(event)}">
+		
+		<!-- Aba 1 -->
+		<mx:Canvas label="Manutenção" width="100%" height="100%">
+			<mx:Form width="100%" height="100%">
+				<mx:FormItem label="Código">
+					<mx:TextInput id="edtCodigo" text="{lancamento.codLancamento}" enabled="false"/>
+				</mx:FormItem>
+				<mx:FormItem label="Parcelado">
+					<mx:CheckBox id="edtParcelado" selected="{lancamento.parcelado}" enabled="{editando}"/>
+				</mx:FormItem>
+				<mx:FormItem label="Quantidade de Parcelas" visible="{edtParcelado.selected}" includeInLayout="{edtParcelado.selected}">
+					<mx:NumericStepper id="edtQtdParcelas" value="{lancamento.qtdParcelas}" enabled="{editando}"/>
+				</mx:FormItem>
+				<mx:FormItem label="Categoria">
+					<mx:HBox>
+						<mx:ComboBox id="edtCategoria" enabled="{editando}" width="250" dataProvider="{categoriaCollection}" 
+							labelField="descricao" rowCount="16" toolTip="{edtCategoria.selectedItem.descricao}"/>
+						<mx:Button click="{abreCategoriaView()}" icon="{imageResource.adicionar}" toolTip="Cadastrar Categoria"/>
+					</mx:HBox>
+				</mx:FormItem>
+				<mx:FormItem label="Valor">
+					<componentes:NumericInput id="edtValor" value="{lancamento.valor}" enabled="{editando}"/>
+				</mx:FormItem>
+				<mx:FormItem label="Data">
+					<componentes:DataFieldPersonalizado id="edtData" selectedDate="{lancamento.data}" enabled="{editando}" editable="true" width="118"/>
+				</mx:FormItem>
+				<mx:FormItem label="Tipo">
+					<mx:HBox>
+						<mx:RadioButtonGroup id="radioTipo" />
+						<mx:RadioButton id="radioEntrada" value="{Constantes.ENTRADA}" label="Entrada" groupName="radioTipo"/>
+						<mx:RadioButton id="radioSaida" value="{Constantes.SAIDA}" label="Saída" groupName="radioTipo"/>
+					</mx:HBox>
+				</mx:FormItem>
+				<mx:FormItem label="Descrição">
+					<componentes:TextAreaPersonalizado id="edtObs" text="{lancamento.obs}" enabled="{editando}" width="295" maxWidth="295" height="70"/>
+				</mx:FormItem>				
+			</mx:Form>
+		</mx:Canvas>
+		
+		<!-- Aba 2 -->
+		<mx:Canvas label="Pesquisa" width="100%" height="100%">
+			<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10" horizontalAlign="center">
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:CheckBox id="cbxMeses" selected="true" click="{pesquisar()}"/>
+					<mx:ComboBox id="edtMeses" dataProvider="{arrMeses}" labelField="label" width="142" rowCount="12" change="{pesquisar()}"
+						enabled="{cbxMeses.selected}"/>
+					<mx:Label text="de"/>
+					<mx:CheckBox id="cbxAno" selected="true" click="{pesquisar()}"/>
+					<mx:NumericStepper id="edtAno"  maximum="2050" minimum="2000" value="{Number(Util.extrairAno(new Date()))}"
+						change="{pesquisar()}" enabled="{cbxAno.selected}"/>
+					<mx:Button id="btnPesquisar" click="{pesquisar()}" icon="{imageResource.pesquisar}"/>
+				</mx:HBox>
+				
+				<mx:HBox width="100%" horizontalAlign="center" enabled="{!agruparLancamentos.selected}">
+					<mx:FormItem label="Descrição">
+						<componentes:TextInputPersonalizado id="edtObsPesquisa" width="200" maxWidth="200" enter="{pesquisar()}"
+								enabled="{!agruparLancamentos.selected}"/>
+					</mx:FormItem>
+					<mx:CheckBox id="cbxCategoriaPesquisa" selected="false" click="{pesquisar()}"/>
+					<mx:FormItem>
+						<mx:ComboBox id="edtCategoriaPesquisa" width="250" dataProvider="{categoriaCollection}"  
+							labelField="descricao" rowCount="16" toolTip="{edtCategoriaPesquisa.selectedItem.descricao}"
+							enabled="{cbxCategoriaPesquisa.selected}" change="{pesquisar()}"/>
+					</mx:FormItem>
+				</mx:HBox>
+				
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:CheckBox id="agruparLancamentos" click="{pesquisar()}" label="Agrupar Lancamentos"/>
+					<mx:RadioButtonGroup id="radioTipoPesquisa" enabled="false" change="{pesquisar()}"/>
+					<mx:RadioButton id="radioEntradaPesquisa" value="{Constantes.ENTRADA}" label="Entrada" groupName="radioTipoPesquisa"/>
+					<mx:RadioButton id="radioSaidaPesquisa" value="{Constantes.SAIDA}" label="Saída" groupName="radioTipoPesquisa" selected="true"/>
+				</mx:HBox>					
+				<mx:DataGrid id="gridPesquisa" width="100%" height="100%" dataProvider="{mediaMensal.listaLancamentos}">
+					<mx:columns>
+						<!--<mx:DataGridColumn headerText="Código" dataField="codLancamento" width="60" visible="{!agruparLancamentos.selected}"/>-->
+						<mx:DataGridColumn headerText="Categoria" dataField="categoria" labelFunction="mostraCategoria"/>
+						<mx:DataGridColumn headerText="Valor" dataField="valor" width="120" labelFunction="mostraValor"/>
+						<mx:DataGridColumn headerText="Data" dataField="data" width="90" labelFunction="mostraData" visible="{!agruparLancamentos.selected}"/>
+						<mx:DataGridColumn headerText="Descrição" dataField="obs" width="250" visible="{!agruparLancamentos.selected}"/>
+						<mx:DataGridColumn width="70" headerText="Alterar" visible="{!agruparLancamentos.selected}">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:HBox width="100%" height="100%" horizontalAlign="center">
+										<mx:Image source="{outerDocument.imageResource.alterar}" click="{outerDocument.alterar()}" toolTip="Alterar Lancamento."/>
+									</mx:HBox>											
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn width="70" headerText="Excluir" visible="{!agruparLancamentos.selected}">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:HBox width="100%" height="100%" horizontalAlign="center">
+										<mx:Image source="{outerDocument.imageResource.excluir}" click="{outerDocument.excluir()}" toolTip="Excluir Lancamento"/>
+									</mx:HBox>											
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+					</mx:columns>
+				</mx:DataGrid>
+				<mx:HBox textAlign="left" >
+					<mx:Label text="Lançamentos: {mediaMensal.listaLancamentos.length}" fontWeight="bold" color="#2007DE" fontSize="14" paddingRight="15"/>
+					<mx:Label id="lblValorTotal" text="Valor Total: " fontWeight="bold" color="#2007DE" fontSize="14"/>
+				</mx:HBox>
+			</mx:VBox>
+		</mx:Canvas>
+	</mx:Accordion>
+
+	<mx:Label id="lblAviso" width="100%" textAlign="center"/>
+
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:Button id="btnNovo" enabled="{!editando}" label="Novo" click="{incluir()}" icon="{imageResource.novo}" toolTip="Incluir Registro." buttonMode="true"/>
+		<mx:Button id="btnSalvar" enabled="{editando}" label="Salvar" click="{salvar()}" icon="{imageResource.salvar}" toolTip="Grava as informações." buttonMode="true" />
+		<mx:Button id="btnCancelar" enabled="{editando}" label="Cancelar" click="{cancelar()}" icon="{imageResource.cancel16x16}" toolTip="Cancela a operação." buttonMode="true"/>
+	</mx:HBox>
+
+	<mx:RemoteObject id="roLancamento"
+		destination="lancamentoService"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}"
+		showBusyCursor="true"
+		invoke="{Util.showProgressBar(this)}">
+		<mx:method name="pesquisar" result="{pesquisarResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+		<mx:method name="salvar" result="{salvarResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+		<mx:method name="excluir" result="{excluirResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="roCategoria"
+		destination="categoriaService"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}"
+		showBusyCursor="true"
+		invoke="{Util.showProgressBar(this)}">
+		<mx:method name="listar" result="{listarCategoriaResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+	</mx:RemoteObject>
+	
+</mx:TitleWindow>

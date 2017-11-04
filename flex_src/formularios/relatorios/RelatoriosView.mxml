@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" width="756" height="334" 
+	title="Relatórios"
+	showCloseButton="true" 
+	xmlns:componentes="uteis.componentes.*"
+	close="fechar()"
+	creationComplete="init()">
+	
+	<mx:Style source="uteis/css/newStyle.css"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import classesRelatorios.TipoRelatorio;
+			import classes.Categoria;
+			import uteis.componentes.RadioButtonGroupValidator;
+			import uteis.componentes.alerta.Alerta;
+			import uteis.ConexaoRemota;
+			import uteis.Constantes;
+			import uteis.Util;
+			import uteis.ImageResource;
+			import mx.effects.easing.Bounce;
+			import mx.core.EdgeMetrics;
+			import mx.events.CollectionEvent;
+			import flash.net.navigateToURL;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			import mx.managers.PopUpManager;
+			
+			[Bindable] private var imageResource:ImageResource = ImageResource.getInstancia();
+
+			[Bindable] private var textFilter:String;
+			
+			[Bindable] private var listaCategoriaTarget:ArrayCollection = new ArrayCollection();
+			
+			[Bindable] private var listaCategoriaSource:ArrayCollection = new ArrayCollection();
+			
+			[Bindable] private var listaRelatorios:ArrayCollection;
+			
+			private var validatorRadioTipo:RadioButtonGroupValidator;
+			    		
+    		private function init():void
+    		{
+    			criaListaRelatorios();
+    			edtRelatorios.selectedItem = -1;
+    		}
+    		
+		    // chama a servlet do relatorio
+		    private function gerar():void
+		    {
+		    	// validações
+		    	if(edtRelatorios.selectedItem != null && (edtRelatorios.selectedItem.cod == Constantes.RELATORIO_MEDIA_MENSAL  
+						|| edtRelatorios.selectedItem.cod == Constantes.RELATORIO_MEDIA_POR_CATEGORIA
+						|| edtRelatorios.selectedItem.cod == Constantes.RELATORIO_VALOR_POR_CATEGORIA_POR_DATA))
+		    	{
+		    		validatorRadioTipo = new RadioButtonGroupValidator();
+		    		validatorRadioTipo.source = radioTipo;
+		    		validatorRadioTipo.property = "selectedValue";
+		    		validatorRadioTipo.required = true;
+		    		validatorRadioTipo.requiredFieldError = "Selecione o Tipo"
+		    		
+		    		arrValidaCampos.push(validatorRadioTipo);
+		    	}
+		    	else if(validatorRadioTipo != null)
+		    	{
+	    			validatorRadioTipo.required = false;
+		    	}
+		    	
+		    	if(Validator.validateAll(arrValidaCampos).length > 0) 
+		    	{
+					Alerta.warning("Existem campos com dados inválidos");
+		    	}
+		    	else if(edtDataInicial.selectedDate.time > edtDataFinal.selectedDate.time)
+		    	{
+		    		Alerta.info("Data Inicial não pode ser maior que a Data Final!");
+		    	}
+		    	//chama o relatorio
+				else
+				{	
+					
+					var codCategoriasSelecionadas:String = "";
+					if(edtRelatorios.selectedItem.cod == Constantes.RELATORIO_VALOR_POR_CATEGORIA_POR_DATA)
+					{
+						for each(var c:Categoria in listaCategoriaTarget)
+						{
+							codCategoriasSelecionadas += c.codCategoria+",";
+						}
+					}
+					
+					var parametros:URLVariables = new URLVariables();
+					var request:URLRequest;
+					// link do sistema e o nome da servlet
+					var url:String = Util.getURL()+"ReportFilter";
+					
+					parametros.acao = edtRelatorios.selectedItem.cod;					
+					parametros.agrupar = agruparLancamentos.selected;
+					parametros.tipo = radioTipo.selectedValue;
+					parametros.codCategorias = codCategoriasSelecionadas;
+					
+					parametros.diaInicio = edtDataInicial.selectedDate.getDate();
+					parametros.mesInicio = edtDataInicial.selectedDate.getMonth()+1;
+					parametros.anoInicio = edtDataInicial.selectedDate.getFullYear();
+					
+					parametros.diaFim = edtDataFinal.selectedDate.getDate();
+					parametros.mesFim = edtDataFinal.selectedDate.getMonth()+1;
+					parametros.anoFim = edtDataFinal.selectedDate.getFullYear();
+					
+					request = new URLRequest(url);
+					request.data = parametros;
+					request.method = URLRequestMethod.GET;
+					
+					navigateToURL(request);
+				}
+		    }
+		    
+		    /**
+			 * Falha - captura erro no RemoteObject
+			 **/
+			private function resultFault(event:FaultEvent):void
+			{
+		      	Alerta.error(event.fault.message+"\n"+event.fault.faultDetail);
+		    }
+		    
+		    private function fechar():void
+			{
+				Util.removePopUp(this);
+			}
+			
+			/**
+			 * Função onde seta a descrição da Categoria
+			 */		
+			private function getDescricaoCategoria(item:Categoria):String
+			{
+				return item.descricao;
+			}
+			
+			/**
+			 * Função onde busca a coluna que o usuário esta digitando no filtro do dualList target
+			 */				
+			private function filterColunaTarget(event:Event):void
+			{
+				dualListCategorias.targetDataProvider = filter(dualListCategorias.targetFilterText, listaCategoriaTarget, itemColunaFilter);
+			}
+			
+			private function filter(text:String, arrayLista:ArrayCollection, itemFilter:Function):ArrayCollection
+			{
+				textFilter = text;
+				arrayLista.filterFunction = itemFilter;
+				arrayLista.refresh();
+				return arrayLista;
+			}
+			
+			/**
+			 * Função onde retorna a(s) colunas do filter
+			 */	
+			private function itemColunaFilter(item:Categoria):Boolean
+			{
+				return (item.descricao.indexOf(textFilter) == 0);
+			}
+		    			
+		   	private function listarCategoria(event:Event = null):void
+		    {
+		    	roCategoria.listar();
+		    }
+		    
+		    private function listarCategoriaResult(event:ResultEvent):void
+		    {
+		    	listaCategoriaSource = event.result as ArrayCollection;
+		    	dualListCategorias.sourceDataProvider = listaCategoriaSource;
+		    	dualListCategorias.targetDataProvider = listaCategoriaTarget;
+		    }
+		    
+		    /**
+			 * Função onde busca a coluna que o usuário esta digitando no filtro do dualList source
+			 */	
+			private function filterColunaSource(event:Event):void
+			{
+				dualListCategorias.sourceDataProvider = filter(dualListCategorias.sourceFilterText, listaCategoriaSource, itemColunaFilter);
+			}
+			
+			/**
+			 * Muda o layout conforme relatorio selecionado
+			 */
+			private function changeRelatorio(event:Event):void
+			{
+				var cod:String = ((event.currentTarget as ComboBox).selectedItem as TipoRelatorio).cod;
+				if(cod == Constantes.RELATORIO_VALOR_POR_CATEGORIA_POR_DATA)
+				{
+					this.currentState = "segundoState";
+				}
+				else
+				{
+					this.currentState = "";	
+				}
+			}
+			
+			/**
+			 * cria uma lista com os relatorios que podem ser emitidos
+			 */
+			private function criaListaRelatorios():void
+			{
+				
+    			listaRelatorios = new ArrayCollection();
+    			var r1:TipoRelatorio = new TipoRelatorio();
+    			r1.cod = Constantes.RELATORIO_MEDIA_MENSAL; 
+    			r1.nome = "Lançamentos Mensais e Gráfico";
+    			listaRelatorios.addItem(r1);
+    			
+    			var r2:TipoRelatorio = new TipoRelatorio();
+    			r2.cod = Constantes.RELATORIO_MEDIA_POR_CATEGORIA; 
+    			r2.nome = "Relatório por Categoria";
+    			listaRelatorios.addItem(r2);
+    			
+    			var r3:TipoRelatorio = new TipoRelatorio();
+    			r3.cod = Constantes.RELATORIO_ENTRADA_SAIDA; 
+    			r3.nome = "Gráfico Entrada/Saída";
+    			listaRelatorios.addItem(r3);
+    			
+    			var r4:TipoRelatorio = new TipoRelatorio();
+    			r4.cod = Constantes.RELATORIO_VALOR_POR_CATEGORIA_POR_DATA; 
+    			r4.nome = "Gráfico Mensal por Categoria";
+    			listaRelatorios.addItem(r4);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- Valida os campos do formulario -->
+    <mx:Array id="arrValidaCampos">
+		<mx:NumberValidator
+			required="true"
+			source="{edtRelatorios}"
+			property="selectedIndex"
+			minValue="0"
+			lowerThanMinError="Você deve selecionar um item!"/>
+		<componentes:DateValidatorPersonalizado
+			required="true"
+			source="{edtDataInicial}"
+			property="text"/>	
+		<componentes:DateValidatorPersonalizado
+			required="true"
+			source="{edtDataFinal}"
+			property="text"/>
+	</mx:Array>
+	
+	<mx:states>
+		<mx:State name="segundoState">
+			<mx:AddChild relativeTo="{mainForm}" position="lastChild">
+				<mx:FormItem label="Categorias">
+					<componentes:DualList id="dualListCategorias" width="100%" horizontalAlign="center" verticalAlign="middle"
+							sourceLabelFunction="getDescricaoCategoria"
+							targetLabelFunction="getDescricaoCategoria"
+							sourceFilterLabel="Filtro"
+							targetFilterLabel="Filtro"
+							sourceFilterChange="filterColunaSource(event)"
+							targetFilterChange="filterColunaTarget(event)"
+							creationComplete="{listarCategoria()}">
+					</componentes:DualList>
+				</mx:FormItem>
+			</mx:AddChild>
+			<mx:SetProperty name="height" value="500"/>
+		</mx:State>
+	</mx:states>
+
+	<mx:HBox width="100%" height="100%"  verticalAlign="middle">
+		<mx:Image source="{imageResource.grafico_128x128}" minHeight="150" minWidth="150" maintainAspectRatio="true"/>
+			
+		<mx:Form id="mainForm" width="100%" height="100%">
+			<mx:FormItem label="Relatório" width="100%">
+				<mx:ComboBox id="edtRelatorios" dataProvider="{listaRelatorios}"
+						labelField="nome" width="250" rowCount="12" selectedIndex="-1"
+						change="{changeRelatorio(event)}"/>
+			</mx:FormItem>
+			
+			<mx:FormItem label="Data Inicial">
+					<componentes:DataFieldPersonalizado id="edtDataInicial" yearNavigationEnabled="true" editable="true" width="109"/>
+			</mx:FormItem>
+			<mx:FormItem label="Data Final">
+				<componentes:DataFieldPersonalizado id="edtDataFinal" yearNavigationEnabled="true" editable="true" width="109"/>
+			</mx:FormItem>
+			
+			<mx:FormItem width="100%">
+				<mx:CheckBox id="agruparLancamentos" label="Agrupar Lancamentos" textAlign="center" 
+						enabled="{edtRelatorios.selectedItem.cod == Constantes.RELATORIO_MEDIA_MENSAL}"/>
+				<mx:HBox width="100%" horizontalAlign="left">
+					<mx:RadioButtonGroup id="radioTipo" 
+							enabled="{edtRelatorios.selectedItem.cod == Constantes.RELATORIO_MEDIA_MENSAL  
+									|| edtRelatorios.selectedItem.cod == Constantes.RELATORIO_MEDIA_POR_CATEGORIA
+									|| edtRelatorios.selectedItem.cod == Constantes.RELATORIO_VALOR_POR_CATEGORIA_POR_DATA}"/>
+					<mx:RadioButton id="radioEntrada" value="{Constantes.ENTRADA}" label="Entrada" groupName="radioTipo"/>
+					<mx:RadioButton id="radioSaida" value="{Constantes.SAIDA}" label="Saída" groupName="radioTipo"/>
+				</mx:HBox>					
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	
+	<mx:HRule width="100%" />
+	<mx:HBox width="100%" horizontalAlign="center">
+		<mx:Button label="Gerar" id="btnGerar" click="{gerar()}" icon="{imageResource.salvar}" toolTip="Gerar o Relatório." 
+			buttonMode="true" width="91"/>		
+		<mx:Button label="Fechar" id="btnFechar" click="{fechar()}" icon="{imageResource.fechar}" toolTip="Fechar o Formulário." 
+			buttonMode="true" width="105"/>
+	</mx:HBox>
+	
+	<mx:RemoteObject id="roCategoria"
+		destination="categoriaService"
+		endpoint="{ConexaoRemota.ENDERECO_SERVER}"
+		showBusyCursor="true"
+		invoke="{Util.showProgressBar(this)}">
+		<mx:method name="listar" result="{listarCategoriaResult(event); Util.removeProgressBar();}" fault="{resultFault(event); Util.removeProgressBar();}"/>
+	</mx:RemoteObject>
+
+</mx:TitleWindow>
