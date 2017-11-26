@@ -307,10 +307,10 @@
 					<mx:TextInput id="edtCodigo" text="{lancamento.codLancamento}" enabled="false"/>
 				</mx:FormItem>
 				<mx:FormItem label="Parcelado">
-					<mx:CheckBox id="edtParcelado" selected="{lancamento.parcelado}" enabled="{editando}"/>
+					<mx:CheckBox id="edtParcelado" selected="{lancamento.parcelado}" enabled="{editando}" />
 				</mx:FormItem>
 				<mx:FormItem label="Quantidade de Parcelas" visible="{edtParcelado.selected}" includeInLayout="{edtParcelado.selected}">
-					<mx:NumericStepper id="edtQtdParcelas" value="{lancamento.qtdParcelas}" enabled="{editando}"/>
+					<mx:NumericStepper id="edtQtdParcelas" value="{lancamento.qtdParcelas}" enabled="{editando}" maximum="60"/>
 				</mx:FormItem>
 				<mx:FormItem label="Categoria">
 					<mx:HBox>
